@@ -1,16 +1,21 @@
+import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import pw from "playwright";
 
 async function main() {
-  // const CDP = process.env.LOCAL_CDP_HOST;
-  // const browser = await pw.chromium.connectOverCDP(CDP);
-  const CDP = process.env.CDP_HOST;
+  /** Prepare browser */
+  const CDP = process.env.LOCAL_CDP_HOST ?? process.env.CDP_HOST;
   const browser = await pw.chromium.connectOverCDP(CDP, { timeout: 10000 });
   const context = await browser.newContext({
     geolocation: { latitude: 49.2827, longitude: -123.1207 }, // hard code Vancouver
     locale: "en-CA",
   });
   const page = await context.newPage();
+
+  /** Prepare Supabase */
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   async function waitForLoading() {
     // Wait for the loading overlay to appear and then disappear
@@ -73,7 +78,7 @@ async function main() {
     await page.click("div.app-popup button.button");
     // await page.waitForNavigation({ waitUntil: "networkidle0" });
     await page.waitForSelector("div.app-popup", { state: "hidden" });
-    await waitForLoading(page);
+    await waitForLoading();
   }
 
   /** Passenger page */
@@ -81,7 +86,7 @@ async function main() {
     console.log("Proceeding to the next page...");
     await page.waitForSelector("div.contents.-booking");
     await page.click("button[type=submit]");
-    await waitForLoading(page);
+    await waitForLoading();
   }
 
   /** Flight result page. Scroll down to fetch ahead for a few months */
@@ -114,29 +119,49 @@ async function main() {
     console.log("Dumping json...");
     const dateElements = await page.locator("button.date").all();
     for (const dateElement of dateElements) {
-      const fulldate = await dateElement.getAttribute("data-fulldate");
-      const value = await dateElement.getAttribute("aria-label");
-      result.push({ fulldate, value });
+      const content_date =
+        (await dateElement.getAttribute("data-fulldate")) || "";
+      const raw_text = (await dateElement.getAttribute("aria-label")) || "";
+      const price = getPrice(raw_text);
+      result.push({ content_date, raw_text, price });
     }
     /** Write json file */
     fs.writeFileSync(
       `screenshots/flight-result--${timestamp}.json`,
       JSON.stringify(result, null, 2)
     );
+    /** Save to database */
+    const { data, error } = await supabase.from("day_record").insert(result);
+    if (error) {
+      console.error("Error saving to database", error);
+    } else {
+      console.log("Saved to database", data);
+    }
 
     console.log("Screenshot and json dump done.");
   }
 
   await delay();
   await browser.close();
-
-  /** Check dates and set alerts */
 }
 
-export async function delay(timeout = 1000) {
+async function delay(timeout = 1000) {
   return new Promise((resolve) => {
     setTimeout(resolve, timeout);
   });
+}
+
+/** Extract the price from text:
+ * "Standard seat - Fri, Aug 2, 2024 - priceC$810.67"
+ * "Standard seat - Sun, Jul 28, 2024 - There are no available seats."
+ */
+function getPrice(rawText) {
+  const token = rawText.split(" - ")[2];
+  if (token.includes("price")) {
+    return token.split("priceC$")[1].replace(",", "");
+  } else {
+    return null;
+  }
 }
 
 main()
