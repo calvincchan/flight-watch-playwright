@@ -149,8 +149,10 @@ async function main() {
 
   {
     console.log("Sending email...");
-    mailer();
+    await mailer();
   }
+
+  console.log("Done");
 }
 
 async function delay(timeout = 1000) {
