@@ -30,7 +30,7 @@ async function main() {
 
   /** Prepare browser with configured geolocation and locale */
   const CDP = process.env.CDP_HOST;
-  const browser = await pw.chromium.connectOverCDP(CDP, { timeout: 10000 });
+  const browser = await pw.chromium.connectOverCDP(CDP, { timeout: 5000 });
   const context = await browser.newContext({
     geolocation: {
       latitude: parseFloat(process.env.BROWSER_LATITUDE),
