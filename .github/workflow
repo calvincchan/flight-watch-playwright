@@ -1,0 +1,20 @@
+name: Scheduled Workflow
+
+on:
+  schedule:
+    # Runs at 8:10 PM UTC every day
+    - cron: "10 20 * * *"
+
+jobs:
+  scheduled-fetch:
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Run a script
+      run: |
+        echo "Running a scheduled job at 8:10 PM UTC every day."
+        echo "Current time: $(date)"
+        yarn install
+        yarn start
