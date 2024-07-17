@@ -3,22 +3,45 @@ import fs from "fs";
 import pw from "playwright";
 
 async function main() {
-  /** Prepare browser */
-  const CDP = process.env.LOCAL_CDP_HOST ?? process.env.CDP_HOST;
+  {
+    /** Validate env variables */
+    const requiredEnvVars = [
+      "CDP_HOST",
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_KEY",
+      "MAILGUN_API_KEY",
+      "MAILGUN_DOMAIN",
+      "MAILGUN_FROM",
+      "BROWSER_LATITUDE",
+      "BROWSER_LONGITUDE",
+      "BROWSER_LOCALE",
+    ];
+    const missingEnvVars = [];
+    for (const envVar of requiredEnvVars) {
+      if (!process.env[envVar]) {
+        missingEnvVars.push(envVar);
+      }
+    }
+    if (missingEnvVars.length > 0) {
+      console.error("Missing required environment variables:", missingEnvVars);
+      return process.exit(1);
+    }
+  }
+
+  /** Prepare browser with configured geolocation and locale */
+  const CDP = process.env.CDP_HOST;
   const browser = await pw.chromium.connectOverCDP(CDP, { timeout: 10000 });
   const context = await browser.newContext({
-    geolocation: { latitude: 49.2827, longitude: -123.1207 }, // hard code Vancouver
-    locale: "en-CA",
+    geolocation: {
+      latitude: parseFloat(process.env.BROWSER_LATITUDE),
+      longitude: parseFloat(process.env.BROWSER_LONGITUDE),
+    },
+    locale: process.env.BROWSER_LOCALE,
   });
   const page = await context.newPage();
 
-  /** Prepare Supabase */
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
+  /** Wait for the loading overlay to appear and then disappear */
   async function waitForLoading() {
-    // Wait for the loading overlay to appear and then disappear
     console.log("Waiting for the loading overlay to appear and disappear...");
     await page
       .waitForSelector("div.app-loading-screen", { state: "visible" })
@@ -76,7 +99,6 @@ async function main() {
     console.log("Clicking next in the popup");
     await page.waitForSelector("div.app-popup", { state: "visible" });
     await page.click("div.app-popup button.button");
-    // await page.waitForNavigation({ waitUntil: "networkidle0" });
     await page.waitForSelector("div.app-popup", { state: "hidden" });
     await waitForLoading();
   }
@@ -130,13 +152,8 @@ async function main() {
       `screenshots/flight-result--${timestamp}.json`,
       JSON.stringify(result, null, 2)
     );
-    /** Save to database */
-    const { data, error } = await supabase.from("day_record").insert(result);
-    if (error) {
-      console.error("Error saving to database", error);
-    } else {
-      console.log("Saved to database", data);
-    }
+
+    await pushToDatabase(result);
 
     console.log("Screenshot and json dump done.");
   }
@@ -161,6 +178,19 @@ function getPrice(rawText) {
     return token.split("priceC$")[1].replace(",", "");
   } else {
     return null;
+  }
+}
+
+async function pushToDatabase(result) {
+  /** Save to database */
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data, error } = await supabase.from("day_record").insert(result);
+  if (error) {
+    console.error("Error saving to database", error);
+  } else {
+    console.log("Saved to database", data);
   }
 }
 
