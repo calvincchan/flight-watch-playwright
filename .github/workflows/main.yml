@@ -15,6 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20"
+
       # Setup cache for Yarn
       - name: Cache Yarn dependencies
         uses: actions/cache@v2
@@ -27,6 +32,16 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Run a script
+        env:
+          CDP_HOST: ${{ secrets.CDP_HOST }}
+          BROWSER_LATITUDE: ${{ secrets.BROWSER_LATITUDE }}
+          BROWSER_LONGITUDE: ${{ secrets.BROWSER_LONGITUDE }}
+          BROWSER_LOCALE: ${{ secrets.BROWSER_LOCALE }}
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          MAILGUN_FROM: ${{ secrets.MAILGUN_FROM }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           echo "Running a scheduled job at 8:10 PM UTC every day."
           echo "Current time: $(date)"
