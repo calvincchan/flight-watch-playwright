@@ -1,9 +1,12 @@
 name: Scheduled Workflow
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # Runs at 8:10 PM UTC every day
-    - cron: "10 20 * * *"
+    - cron: "15 19 * * *"
 
 jobs:
   scheduled-fetch:
