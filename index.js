@@ -1,7 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import fs from "fs";
 import pw from "playwright";
 import { mailer } from "./mailer.js";
+import { supabase } from "./supabase.js";
 
 async function main() {
   {
@@ -127,17 +126,8 @@ async function main() {
 
   await delay();
 
-  const result = [];
-
   {
-    /** take screenshot with timestamp */
-    console.log("Taking screenshot...");
-    const timestamp = new Date().toISOString().replace(/:/g, "-");
-    await page.screenshot({
-      path: `screenshots/screenshot--${timestamp}.png`,
-      fullPage: true,
-    });
-
+    const result = [];
     /** dump json */
     console.log("Dumping json...");
     const dateElements = await page.locator("button.date").all();
@@ -148,11 +138,6 @@ async function main() {
       const price = getPrice(raw_text);
       result.push({ content_date, raw_text, price });
     }
-    /** Write json file */
-    fs.writeFileSync(
-      `screenshots/flight-result--${timestamp}.json`,
-      JSON.stringify(result, null, 2)
-    );
 
     await pushToDatabase(result);
 
@@ -189,14 +174,11 @@ function getPrice(rawText) {
 
 async function pushToDatabase(result) {
   /** Save to database */
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-  const supabase = createClient(supabaseUrl, supabaseKey);
   const { data, error } = await supabase.from("day_record").insert(result);
   if (error) {
     console.error("Error saving to database", error);
   } else {
-    console.log("Saved to database", data);
+    console.log("Saved to database");
   }
 }
 

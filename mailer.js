@@ -1,12 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import { sendEmailWithMailgun } from "./mailgun.js";
+import { supabase } from "./supabase.js";
 
 export async function mailer() {
-  /** Prepare Supabase */
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   /** Check all watches */
   const { data: watches, error } = await supabase
     .from("watch")
