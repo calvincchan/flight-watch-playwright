@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import pw from "playwright";
+import { mailer } from "./mailer.js";
 
 async function main() {
   {
@@ -160,6 +161,11 @@ async function main() {
 
   await delay();
   await browser.close();
+
+  {
+    console.log("Sending email...");
+    mailer();
+  }
 }
 
 async function delay(timeout = 1000) {
